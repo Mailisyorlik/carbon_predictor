@@ -78,21 +78,8 @@ if json_response:
 
     #Drop the 'zone' and 'history' columns, as they are no longer needed
     df.drop(columns=['zone', 'history'], inplace=True)
-    df.columns = ['Interval', 'Balancing Authority', 'Carbon Intensity']
+    #df.columns = ['Interval', 'Balancing Authority', 'Carbon Intensity']
     print(df)
-    #print(df.head())
-    #for val in df['history']:
-        #lowest_ci_hours = sorted(df['history'], key = lambda x: x['value'])[:2]
-    #ci_sorted = df.sort_values(by = 'carbonIntensity')
-    #ci_lowest_hours = ci_sorted[['zone', 'history']].head(2)
-    #ci_lowest_hours['startTime'] = pd.to_datetime(ci_lowest_hours['history'].apply(lambda x: x['startTime']))
-    #ci_lowest_hours.rename(columns = {'startTime':'Date', 'zone':'Zone'}, inplace = True)
-    #ci_lowest_hours.drop(columns = 'history', inplace = True)
-    #print(ci_lowest_hours)
-    #print(ci_lowest_hours.head())
-#get_lowest_carbon_intensity_hours(nv_dataframe)
-#fetch_hourly_data(zone = 'US-NW-NEVP', timestamp = timestamp)
-#get_lowest_carbon_intensity_hours(response.json)
 
 #if __name__ == "__main__":
 
@@ -100,17 +87,19 @@ def format_time(hour_value):
     formatted_time = str(hour_value).zfill(2)
     return f"{formatted_time}:00"
 
-df.insert(0,'Formatted Hour', df['hour'].apply(format_time))
+#df.insert(0,'Formatted Hour', df['hour'].apply(format_time))
 #df.drop(columns=['hour', inplace = True])
 
 print(df)
 
 def get_lowest_hours(df):
-   lowest_two = df.nsmallest(2, 'carbonIntensity')
-   return lowest_two
+    df['carbonIntensity'] = df['Formatted'].str.extract(r'carbonIntensity:\s+(\d+)').astype(int)
+    #df['carbonIntensity'] = df['carbonIntensity'].astype(int)
+    lowest_two = df.nsmallest(2, 'carbonIntensity')
+    return lowest_two
 
 lowest_hours = get_lowest_hours(df)
-
+print(lowest_hours)
 def get_yesterdays_ci():
     yesterday = date.today() - timedelta(days = 1)  # Replace with the actual date in the format YYYY-MM-DD
     hourly_data = fetch_hourly_data(timestamp=yesterday)
@@ -126,8 +115,10 @@ def get_yesterdays_ci():
 def create_message(lowest_hours):
     message = "Yesterday's lowest CI values for NEVP were:\n"
     for _, row in lowest_hours.iterrows():
-        message += f"{row['Formatted_Hour']} - {row['carbonIntensity']} gco2e/kwh"
+        message += f"{row['Formatted']} - {row['carbonIntensity']} gco2e/kwh"
+        return message
 
+create_message(lowest_hours)
 def send_sms(message):
     client = Client(account_sid, auth_token)
     try:
@@ -141,7 +132,7 @@ def send_sms(message):
         print(f'Error sending SMS: {str(e)}')
 
 
-send_sms(df)
+send_sms(create_message(lowest_hours))
 
 # Job function to fetch forecast and send SMS - needs to fetch for the day and send a lsit of the three least CI intensive hours
 # of the day
