@@ -1,6 +1,6 @@
 
 
-
+#also consider co2 signal as an option?
 import requests
 import schedule
 import time
@@ -40,7 +40,7 @@ def fetch_test(api_key) -> str: #eventually put the api key as a called argument
     }
 
     response = requests.get(url, headers=headers)
-    print(response.text)
+    #print(response.text)
     return response.text
 
 json_response = fetch_test(api_key) #maybe add api key as second argument
@@ -69,24 +69,50 @@ def get_lowest_carbon_intensity_hours(data):
 
 json_response = fetch_test(api_key) #maybe add api key as second argument
 
+
 if json_response:
     df = pd.read_json(json_response)
+    #print(df)
+    # Format each row in the desired format and create a new column 'Formatted'
+    df['Formatted'] = df.apply(lambda row: f"{row.name + 1} {row['zone']} carbonIntensity: {row['history']['carbonIntensity']}", axis=1)
+
+    #Drop the 'zone' and 'history' columns, as they are no longer needed
+    df.drop(columns=['zone', 'history'], inplace=True)
+    df.columns = ['Interval', 'Balancing Authority', 'Carbon Intensity']
     print(df)
-    ci_sorted = df.sort_values(by = 'carbonIntensity')
-    ci_lowest_hours = ci_sorted[['zone', 'history']].head(2)
-    ci_lowest_hours['startTime'] = pd.to_datetime(ci_lowest_hours['history'].apply(lambda x: x['startTime']))
-    ci_lowest_hours.rename(columns = {'startTime':'Date', 'zone':'Zone'}, inplace = True)
-    ci_lowest_hours.drop(columns = 'history', inplace = True)
-    print(ci_lowest_hours)
+    #print(df.head())
+    #for val in df['history']:
+        #lowest_ci_hours = sorted(df['history'], key = lambda x: x['value'])[:2]
+    #ci_sorted = df.sort_values(by = 'carbonIntensity')
+    #ci_lowest_hours = ci_sorted[['zone', 'history']].head(2)
+    #ci_lowest_hours['startTime'] = pd.to_datetime(ci_lowest_hours['history'].apply(lambda x: x['startTime']))
+    #ci_lowest_hours.rename(columns = {'startTime':'Date', 'zone':'Zone'}, inplace = True)
+    #ci_lowest_hours.drop(columns = 'history', inplace = True)
+    #print(ci_lowest_hours)
+    #print(ci_lowest_hours.head())
 #get_lowest_carbon_intensity_hours(nv_dataframe)
 #fetch_hourly_data(zone = 'US-NW-NEVP', timestamp = timestamp)
 #get_lowest_carbon_intensity_hours(response.json)
 
 #if __name__ == "__main__":
 
+def format_time(hour_value):
+    formatted_time = str(hour_value).zfill(2)
+    return f"{formatted_time}:00"
+
+df.insert(0,'Formatted Hour', df['hour'].apply(format_time))
+#df.drop(columns=['hour', inplace = True])
+
+print(df)
+
+def get_lowest_hours(df):
+   lowest_two = df.nsmallest(2, 'carbonIntensity')
+   return lowest_two
+
+lowest_hours = get_lowest_hours(df)
 
 def get_yesterdays_ci():
-    yesterday = '2023-07-12'  # Replace with the actual date in the format YYYY-MM-DD
+    yesterday = date.today() - timedelta(days = 1)  # Replace with the actual date in the format YYYY-MM-DD
     hourly_data = fetch_hourly_data(timestamp=yesterday)
     if hourly_data:
         lowest_hours = get_lowest_carbon_intensity_hours(hourly_data)
@@ -96,6 +122,12 @@ def get_yesterdays_ci():
         return lowest_hours
 #get_yesterdays_ci()
 # Send SMS using Twilio
+
+def create_message(lowest_hours):
+    message = "Yesterday's lowest CI values for NEVP were:\n"
+    for _, row in lowest_hours.iterrows():
+        message += f"{row['Formatted_Hour']} - {row['carbonIntensity']} gco2e/kwh"
+
 def send_sms(message):
     client = Client(account_sid, auth_token)
     try:
@@ -108,17 +140,23 @@ def send_sms(message):
     except Exception as e:
         print(f'Error sending SMS: {str(e)}')
 
+
+send_sms(df)
+
 # Job function to fetch forecast and send SMS - needs to fetch for the day and send a lsit of the three least CI intensive hours
 # of the day
 def job():
     get_yesterday = get_yesterdays_ci()
     if get_yesterday:
         carbon_intensity = get_yesterday['forecast']['carbonIntensity']
-        message = f"Lowest CI Hours{lowest_hours}"
+        message = f"Lowest CI Hours{lowest_ci_hours}"
         print(message)
         send_sms(message)
 
-job()
+
+
+
+#job()
 def produce_forecast() -> None:
     '''placeholder function for inference from forecast_models.py'''
     pass
