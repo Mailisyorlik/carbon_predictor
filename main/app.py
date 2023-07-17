@@ -115,9 +115,10 @@ def get_yesterdays_ci():
 def create_message(lowest_hours):
     message = "Yesterday's lowest CI values for NEVP were:\n"
     for _, row in lowest_hours.iterrows():
-        message += f"{row['Formatted']} - {row['carbonIntensity']} gco2e/kwh"
-        return message
-
+        message += f"#{row['Formatted']} - {row['carbonIntensity']} gCo2e/kwh"
+        return message #this seems to only return one value
+#the issue is that this is returning somewhat inconsistent values. 
+#{row['Formatted']} - 
 create_message(lowest_hours)
 def send_sms(message):
     client = Client(account_sid, auth_token)
@@ -127,7 +128,7 @@ def send_sms(message):
             from_=twilio_phone_number,
             to=your_phone_number
         )
-        print('SMS sent successfully!')
+        print('SMS sent to 775-527-6840 successfully!')
     except Exception as e:
         print(f'Error sending SMS: {str(e)}')
 
@@ -140,7 +141,7 @@ def job():
     get_yesterday = get_yesterdays_ci()
     if get_yesterday:
         carbon_intensity = get_yesterday['forecast']['carbonIntensity']
-        message = f"Lowest CI Hours{lowest_ci_hours}"
+        message = f"Lowest CI Hours: {lowest_ci_hours}"
         print(message)
         send_sms(message)
 
