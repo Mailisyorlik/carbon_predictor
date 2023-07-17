@@ -32,9 +32,9 @@ auth_token = secrets['auth_token']
 twilio_phone_number = secrets['twilio_phone_number']
 your_phone_number = secrets['your_phone_number']
 
-
-def fetch_test(api_key) -> str: #eventually put the api key as a called argument
-    url = "https://api-access.electricitymaps.com/free-tier/carbon-intensity/history?zone=US-NW-NEVP" #zone is set for NV energy 
+url = "https://api-access.electricitymaps.com/free-tier/carbon-intensity/history?zone=US-NW-NEVP"
+def fetch_test(api_key, url) -> str: #eventually put the api key as a called argument
+    url = url #zone is set for NV energy 
     headers = {
   "auth-token": api_key #fix this, they should not be referring to the same thing
     }
@@ -43,10 +43,20 @@ def fetch_test(api_key) -> str: #eventually put the api key as a called argument
     #print(response.text)
     return response.text
 
-json_response = fetch_test(api_key) #maybe add api key as second argument
+json_response = fetch_test(api_key, url) #maybe add api key as second argument
 
 
 timestamp = date.today() - timedelta(days = 1)
+historical_url = 'https://api.electricitymap.org/v3/carbon-intensity/past-range?zone=DE&start=2022-07-15T21:00:00Z&end=2023-07-15T00:00:00Z'
+url = historical_url 
+historical_json = fetch_test(api_key, url)
+def historical_data(historical_json):
+    historical_df = pd.read_json(historical_json)
+    print("THIS IS HISTORICAL DATA: +", historical_df)
+
+
+historical_data(historical_json)
+
 
 
 def fetch_hourly_data(zone='US-NW-NEVP', timestamp = timestamp) -> str: #what should this be returning
@@ -67,7 +77,7 @@ def get_lowest_carbon_intensity_hours(data):
     return lowest_hours
 
 
-json_response = fetch_test(api_key) #maybe add api key as second argument
+json_response = fetch_test(api_key, url) #maybe add api key as second argument
 
 
 if json_response:
@@ -104,18 +114,19 @@ def get_yesterdays_ci():
     yesterday = date.today() - timedelta(days = 1)  # Replace with the actual date in the format YYYY-MM-DD
     hourly_data = fetch_hourly_data(timestamp=yesterday)
     if hourly_data:
-        lowest_hours = get_lowest_carbon_intensity_hours(hourly_data)
+        lowest_hours = get_lowest_hours(hourly_data)
         print(f"The two lowest carbon intensity hours for {yesterday}:")
         for hour in lowest_hours:
             print(f"Hour: {hour['startTime']}, Carbon Intensity: {hour['value']}")
-        return lowest_hours
+            lowest_hours = lowest_hours.iloc[1:].reset_index(drop=True)
+            return lowest_hours
 #get_yesterdays_ci()
 # Send SMS using Twilio
 
 def create_message(lowest_hours):
     message = "Yesterday's lowest CI values for NEVP were:\n"
     for _, row in lowest_hours.iterrows():
-        message += f"#{row['Formatted']} - {row['carbonIntensity']} gCo2e/kwh"
+        message += f"#{row['Formatted']} \n gCo2e/kwh. \n Run your appliances at that time today" 
         return message #this seems to only return one value
 #the issue is that this is returning somewhat inconsistent values. 
 #{row['Formatted']} - 
@@ -154,6 +165,10 @@ def produce_forecast() -> None:
     pass
 
 
+
+if __name__ == '__main__':
+    fetch_test(api_key, url)
+    send_sms(create_message(lowest_hours))
 #job()
 
 # Schedule the job to run at 9 am PST
