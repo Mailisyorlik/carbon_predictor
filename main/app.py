@@ -10,7 +10,7 @@ import json
 import pandas as pd
 
 # Read the secrets from the JSON file
-with open('/Users/liamkilroy/Documents/py_projects/carbon_predictor/secrets.json') as file:
+with open('/carbon_predictor/secrets.json') as file:
     secrets = json.load(file)
 
 # Access the secrets using their keys
@@ -139,7 +139,7 @@ def send_sms(message):
             from_=twilio_phone_number,
             to=your_phone_number
         )
-        print('SMS sent to 775-527-6840 successfully!')
+        print(f'SMS sent to {phone_number} successfully!')
     except Exception as e:
         print(f'Error sending SMS: {str(e)}')
 
